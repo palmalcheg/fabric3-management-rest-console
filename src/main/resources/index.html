@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="styles/Site.css" rel="stylesheet" type="text/css" />
+    <script src="js/jquery.min.js" type="text/javascript" ></script>
+    <script src="js/knockout-2.1.0.js" type="text/javascript"></script>
+    <script src="js/knockout.mapping-latest.js" type="text/javascript"></script>
+    <script src="js/jquery.isotope.min.js" type="text/javascript"></script>
+</head>
+<body>
+        <script src="js/admin_ui.js"></script>
+        <script id='isotope-element' type="text/html">
+            <div class="system element clearfix" >
+			  <table  class="bordered" data-bind="visible: deployables.length > 0">
+                 <thead>
+                   <tr>
+                     <th>Namespace</th>
+                     <th>Composite Name</th>
+                   </tr>
+                  </thead>
+				<tbody data-bind='foreach: deployables'>
+					<tr>
+				        <td data-bind='text: namespace' />
+						<td data-bind='text: composite' />
+					</tr>
+				</tbody>	
+              </table>
+              <p class="number" data-bind="text: id"/>
+		      <h2 class="name" data-bind="text: name" />
+		      <p class="version" data-bind="text: version"/>
+		      <p class="state" data-bind="text: state" />
+            </div>
+        </script>            	            	
+        <script>  
+             $(function () {
+                    var ViewModel = function() {
+                        var self = this;
+						
+						self.contributions = ko.observableArray();
+			            self.selectedItems = ko.observableArray();
+						self.domain = ko.observable();						
+					
+                        self.clickOnElement = function($th) {
+                            $th.toggleClass('large');
+                            var contrib = $th.data();
+				            if ($th.hasClass('large')) {				                
+								if (contrib) {	      
+								    _loadRemote(contrib.link.href, 
+								                                       function(data) { 
+																				mapped = $.map(data, function(el, index) {
+																					 var g = /\{(.*)\}(.*)/g.exec(el) || [];
+																					 return { namespace : g[1] || "" , composite : g[2] || ""};
+																				}); 					
+																			  contrib.deployables = mapped;
+								                                              self.selectedItems.push($th);
+								                                       }
+								                 , "deployables" );
+								}
+				            }
+				            else {
+				                if (contrib) {	      
+								       contrib.deployables = [];
+								}
+				                self.selectedItems.pop($th);
+				            }
+                        };
+                        
+			           
+			            
+			            self.loadRemoteContributions = ko.computed( function () {
+			                 var domain = ko.utils.unwrapObservable(self.domain);		
+			                 if (domain) {	                 
+			                   _loadRemote(domain.contributions.href,
+			                      function(data){ 
+			                           data = $.map(data, function(el, index) {
+			                                                  var match = /(.*)-(?=\d)(.*).jar/.exec(el.uri);
+																  if (match == null)
+																	 match = ["" , el.uri , ""];														  
+																  el.name = match[1] || "" ;
+																  el.version = match[2] || "";
+																  el.deployables=[];
+																  el.id=index+1;
+															  return el; 
+															} 
+											  );
+			                           self.contributions(data);
+			                       } 
+			                     , "contributions" );			                   
+			                 }
+				        } , self);
+				        
+				       };	
+			        
+					var loc = window.location;
+					var addr = loc.protocol+"//"+loc.host;		
+					if (!addr || !(loc.protocol=="http")) {
+						addr="http://localhost:8181";
+					}
+					var v = new ViewModel();
+				    _loadRemote(addr+"/management/domain", v.domain);
+				    ko.applyBindings(v);
+			        		
+			    });
+        </script>
+        
+               <div id="container" class="clickable variable-sizes clearfix" data-bind="isotope :                
+			                 {     
+			                       data : contributions,
+			                       template : 'isotope-element',
+			                       layoutMode: 'fitRows',
+			                       clickOnSelection : clickOnElement,
+			                       selectedItems : selectedItems
+			                 } " >							        
+			    </div>
+     
+
+
+</body>
+</html>
